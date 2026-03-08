@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intern's Income Calculator | HR Portal</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js"></script>
+
+    <!-- Auth Guard: Redirect to login if not authenticated -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script>
+        // 1. INSTANT SYNCHRONOUS CHECK (Zero Latency)
+        if (sessionStorage.getItem('isStaffAuth') !== 'true') {
+            window.location.replace('login.html');
+        }
+
+        // 2. FIREBASE BACKGROUND VERIFICATION
+        const _guardConfig = {
+            apiKey: "AIzaSyCniS3tFAjmpfHS1KKJhmeOkaK5qpOBcj8",
+            authDomain: "calculator-d8599.firebaseapp.com",
+            projectId: "calculator-d8599",
+            appId: "1:601020159556:web:c3ff07b584325e5d5d4e11"
+        };
+        if (!firebase.apps.length) firebase.initializeApp(_guardConfig);
+
+        firebase.auth().onAuthStateChanged(function (user) {
+            if (!user) {
+                // If Firebase token is actually invalid, force logout
+                sessionStorage.removeItem('isStaffAuth');
+                window.location.replace('login.html');
+            } else {
+                // Valid token -> force unhide page
+                document.documentElement.style.display = 'block';
+            }
+        });
+    </script>
+    <style>
+        /* Hide everything until auth is verified */
+        html {
+            display: none;
+        }
+    </style>
+
+    <!-- Firebase Realtime Database SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+</head>
+
+<body>
+    <div class="bg-blobs">
+        <div class="blob blob-1"></div>
+        <div class="blob blob-2"></div>
+        <div class="blob blob-3"></div>
+        <div class="blob blob-4"></div>
+        <div class="blob blob-5"></div>
+        <div class="blob blob-6"></div>
+    </div>
+    <div id="failureOverlay" class="failure-overlay"></div>
+    <div class="container">
+        <div class="split-layout">
+            <!-- Left Side: Welcome & Info -->
+            <aside class="welcome-section">
+                <div class="welcome-content">
+                    <span class="portal-badge">Internal Staff Portal</span>
+                    <h1>Welcome!</h1>
+                    <div class="brand-line"></div>
+                    <p class="description">
+                        This is the official compensation portal for FortuMars and Cognithorz Interns.
+                        Calculate your monthly income, performance incentives, and generate real-time reports with
+                        precision.
+                    </p>
+                    <div class="cta-group">
+                        <button id="viewGuidelinesBtn" class="tertiary-btn">View Guidelines</button>
+                        <button id="viewFaqBtn" class="tertiary-btn">FAQs</button>
+
+                        <div class="theme-switcher">
+                            <button class="theme-btn active" data-theme="classic" data-tooltip="Classic">
+                                <span class="bg-classic"></span>
+                            </button>
+                            <button class="theme-btn" data-theme="ocean" data-tooltip="Emerald">
+                                <span class="bg-ocean"></span>
+                            </button>
+                            <button class="theme-btn" data-theme="gradient" data-tooltip="Vibrant">
+                                <span class="bg-gradient"></span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Right Side: Interaction Container -->
+            <main class="calculator-card">
+                <!-- Hero Image Integration -->
+                <div id="heroGraphic" class="hero-graphic">
+                    <img src="hr_hero.png" alt="HR Portal Graphic" class="hero-img">
+                </div>
+
+                <!-- View 1: Input Page -->
+                <section id="inputView" class="view-section">
+                    <div class="view-header">
+                        <h3>Compensation Calculator</h3>
+                        <p>Enter details to calculate monthly payable</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="internName">Intern Name</label>
+                        <div class="input-with-icon">
+                            <svg class="field-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2">
+                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                <circle cx="12" cy="7" r="4" />
+                            </svg>
+                            <input type="text" id="internName" placeholder="Enter full name" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="designation">Designation</label>
+                        <select id="designation" required>
+                            <option value="" disabled selected>Select Designation</option>
+                            <option value="Technical Intern">Technical Intern</option>
+                            <option value="Business Executive Intern">Business Executive Intern</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="monthSelection">Month Selection</label>
+                        <select id="monthSelection" required>
+                            <option value="" disabled selected>Select Month</option>
+                            <option value="1">Month 1</option>
+                            <option value="2">Month 2</option>
+                            <option value="3">Month 3</option>
+                            <option value="4">Month 4</option>
+                            <option value="5">Month 5</option>
+                            <option value="6">Month 6</option>
+                        </select>
+                    </div>
+
+                    <div class="dual-inputs">
+                        <div class="form-group">
+                            <label for="currMonthRevenue">Curr Revenue (₹)</label>
+                            <input type="number" id="currMonthRevenue" placeholder="0" min="0" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="prevMonthRevenue">Pending Revenue (₹)</label>
+                            <input type="number" id="prevMonthRevenue" placeholder="0" min="0" required>
+                        </div>
+                    </div>
+
+                    <button id="calculateBtn" class="primary-btn">Calculate & Generate Report</button>
+                    <div id="errorMessage" class="error-text"></div>
+                </section>
+
+                <!-- View 2: Results Page (NEXT PAGE) -->
+                <section id="resultView" class="view-section hidden">
+                    <div class="view-header">
+                        <div class="status-indicator">
+                            <span id="statusIcon" class="status-icon">✅</span>
+                            <h3 id="statusTitle">Milestone Achieved</h3>
+                        </div>
+                        <p id="statusSubtitle">Intern's Income ELIGIBLE Report</p>
+                    </div>
+
+                    <div class="result-grid">
+                        <div class="result-card">
+                            <div class="icon-label">
+                                <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                    <circle cx="12" cy="7" r="4" />
+                                </svg>
+                                <span>Intern Name</span>
+                            </div>
+                            <div id="resName" class="big-value">-</div>
+                        </div>
+                        <div class="result-card">
+                            <div class="icon-label">
+                                <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+                                    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+                                </svg>
+                                <span>Designation</span>
+                            </div>
+                            <div id="resDesignation" class="big-value">-</div>
+                        </div>
+                        <div class="result-card">
+                            <div class="icon-label">
+                                <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                                    <line x1="16" y1="2" x2="16" y2="6" />
+                                    <line x1="8" y1="2" x2="8" y2="6" />
+                                    <line x1="3" y1="10" x2="21" y2="10" />
+                                </svg>
+                                <span>Internship Tenure</span>
+                            </div>
+                            <div id="resMonth" class="big-value">-</div>
+                        </div>
+                        <div class="result-card highlight">
+                            <div class="icon-label">
+                                <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                    stroke-width="2">
+                                    <path d="M8 3h8M8 8h8M8 13l6 8M8 13h2a4 4 0 0 0-0-8" />
+                                </svg>
+                                <span id="resRevenueLabel">Revenue Performance Summary</span>
+                            </div>
+                            <div id="resTotalGenerated" class="big-value">-</div>
+                            <div class="sub-label">Current Month Milestone: <span id="resRequired">-</span></div>
+                        </div>
+                    </div>
+
+                    <div id="resExplanation" class="status-explanation">
+                        <div class="status-explanation-header">
+                            <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                stroke-width="2.5">
+                                <path d="M3 3v18h18" />
+                                <path d="M18 17V9" />
+                                <path d="M13 17V5" />
+                                <path d="M8 17v-4" />
+                            </svg>
+                            <span>Performance Insights</span>
+                        </div>
+                        <div id="resExplanationText"></div>
+                    </div>
+
+                    <div class="salary-breakdown">
+                        <div class="breakdown-row">
+                            <span>Base Income</span>
+                            <span id="resBaseSalary" class="amount">₹0</span>
+                        </div>
+                        <div class="breakdown-row">
+                            <span>Performance Incentive</span>
+                            <span id="resIncentive" class="amount">₹0</span>
+                        </div>
+                        <div class="breakdown-total">
+                            <div class="total-label">Total Payable</div>
+                            <div class="strike-through-container">
+                                <div id="resFinalSalary" class="total-amount">₹0</div>
+                                <div id="strikeLine" class="strike-through-line"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="salaryStatusBadge" class="final-status-badge"></div>
+
+
+
+                    <button id="backBtn" class="secondary-btn">
+                        <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <path d="M19 12H5M12 19l-7-7 7-7" />
+                        </svg>
+                        Back to Calculator
+                    </button>
+                </section>
+            </main>
+        </div>
+
+        <!-- FAQ Section -->
+        <section id="faqSection" class="faq-section">
+            <div class="faq-header">
+                <h2>❓ FAQs</h2>
+                <p>Intern's Income Calculator</p>
+            </div>
+            <div class="faq-accordion">
+                <div class="faq-item">
+                    <button class="faq-question">1. What is this income calculator used for? <span
+                            class="faq-icon">+</span></button>
+                    <div class="faq-answer">
+                        <p>This calculator helps interns estimate their monthly stipend and incentives based on the
+                            revenue they generate during their internship period.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question">2. What inputs are required to calculate the income? <span
+                            class="faq-icon">+</span></button>
+                    <div class="faq-answer">
+                        <p>Users need to provide the following details:</p>
+                        <ul>
+                            <li>Intern Name</li>
+                            <li>Designation</li>
+                            <li>Internship Month (1–6)</li>
+                            <li>Current Month Revenue</li>
+                            <li>Previous Month Revenue (if any)</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question">3. How is the base stipend calculated? <span
+                            class="faq-icon">+</span></button>
+                    <div class="faq-answer">
+                        <p>The base stipend of ₹8,000 is awarded only when the intern meets the required revenue
+                            milestone for the selected month using <strong>current month revenue</strong>.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question">4. What are the monthly revenue milestones? <span
+                            class="faq-icon">+</span></button>
+                    <div class="faq-answer">
+                        <p>The required revenue targets are:</p>
+                        <ul>
+                            <li>Month 1–3: ₹40,000</li>
+                            <li>Month 4–5: ₹60,000</li>
+                            <li>Month 6: ₹80,000</li>
+                        </ul>
+                        <p>These milestones determine eligibility for the base stipend.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question">5. What happens if I exceed the required revenue? <span
+                            class="faq-icon">+</span></button>
+                    <div class="faq-answer">
+                        <p>If your current month revenue exceeds the required milestone, you will receive a <strong>10%
+                                incentive on the extra revenue generated</strong>, in addition to the base stipend.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question">6. What happens if I do not reach the required revenue milestone? <span
+                            class="faq-icon">+</span></button>
+                    <div class="faq-answer">
+                        <p>If the milestone is not achieved, the base stipend will not be granted. However, you will
+                            still receive a <strong>10% incentive on the revenue generated</strong>.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question">7. Does previous month revenue count toward the milestone? <span
+                            class="faq-icon">+</span></button>
+                    <div class="faq-answer">
+                        <p><strong>No.</strong> Milestone eligibility is based <em>only</em> on the current month
+                            revenue. Previous month revenue is considered only for calculating incentives.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question">8. What happens if I generate zero revenue in the current month? <span
+                            class="faq-icon">+</span></button>
+                    <div class="faq-answer">
+                        <p>If no revenue is generated in the current month, the base stipend will not be awarded.
+                            However, a <strong>10% incentive will still be paid</strong> on any previous month revenue
+                            received.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question">9. Is the income calculation automatic? <span
+                            class="faq-icon">+</span></button>
+                    <div class="faq-answer">
+                        <p><strong>Yes.</strong> Once the required inputs are entered, the calculator automatically
+                            computes the stipend and incentives based on the defined rules.</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question">10. Can I use this calculator on mobile devices? <span
+                            class="faq-icon">+</span></button>
+                    <div class="faq-answer">
+                        <p><strong>Yes.</strong> The income calculator is designed to work smoothly and responsively on
+                            both desktop and mobile devices.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <p>&copy; 2026 FortuMars & Cognithorz. Internal Use Only.</p>
+        </footer>
+    </div>
+
+    <!-- Standardized Guidelines Modal -->
+    <div id="guidelinesModal" class="modal-overlay hidden">
+        <div class="modal-content glass-morphism">
+            <div class="modal-header">
+                <h3>Internship Revenue Guidelines</h3>
+                <button id="closeModal" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="guideline-item">
+                    <span class="period">Month 1-3</span>
+                    <span class="target">Milestone: ₹40,000</span>
+                </div>
+                <div class="guideline-item">
+                    <span class="period">Month 4-5</span>
+                    <span class="target">Milestone: ₹60,000</span>
+                </div>
+                <div class="guideline-item">
+                    <span class="period">Month 6</span>
+                    <span class="target">Milestone: ₹80,000</span>
+                </div>
+                <div class="incentive-note">
+                    <ul class="guidelines-list">
+                        <li><strong>Base Stipend (₹8,000):</strong> Awarded ONLY if the <strong>Current Month</strong>
+                            revenue meets or exceeds the milestone. Exact milestone hits receive only the base stipend.
+                        </li>
+                        <li><strong>Incentive on Current Revenue:</strong> 10% bonus is awarded <em>only</em> on the
+                            revenue that <strong>exceeds</strong> the required milestone. If the milestone is not met, a
+                            10% incentive is awarded on the entire current month revenue.</li>
+                        <li><strong>Pending/Previous Revenue:</strong> Previous month (pending) revenue always grants an
+                            unconditional <strong>10% incentive</strong>, but does <em>not</em> count toward unlocking
+                            the base stipend.</li>
+                        <li><strong>Zero Current Revenue:</strong> If no revenue is generated in the current month, no
+                            stipend is given, but any pending revenue still earns a 10% incentive.</li>
+                    </ul>
+                </div>
+            </div>
+            <button id="modalOkBtn" class="primary-btn">Understood</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
